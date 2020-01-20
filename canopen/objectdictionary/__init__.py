@@ -187,8 +187,16 @@ class Array(Mapping):
             pass
         elif isinstance(subindex, int) and 0 < subindex < 256:
             # Create a new variable based on first array item
-            template = self.subindices[1]
-            name = "%s_%x" % (template.name, subindex)
+            # template = self.subindices[1]
+            # name = "%s_%x" % (template.name, subindex)
+
+            if len(self.subindices) > 1:
+                template = self.subindices[1]
+            else:
+                template = self.subindices[0]
+            tempname = template.name.rsplit("[", 1)[0]
+            name = "%s[%d]" % (tempname, subindex-1)
+
             var = Variable(name, self.index, subindex)
             var.parent = self
             for attr in ("data_type", "unit", "factor", "min", "max", "default",
@@ -212,6 +220,8 @@ class Array(Mapping):
     def add_member(self, variable):
         """Adds a :class:`~canopen.objectdictionary.Variable` to the record."""
         variable.parent = self
+        if variable.subindex == 1:
+            variable.name += "[0]"
         self.subindices[variable.subindex] = variable
         self.names[variable.name] = variable
 
@@ -303,6 +313,9 @@ class Variable(object):
 
     def decode_raw(self, data):
         if self.data_type == VISIBLE_STRING:
+            # Not sure why these chars show up in strings, but remove them if found
+            for rep in [b'\x0f', b'\x18', b'\xf0', b'\x9f', b'\xff']:
+                data = data.replace(rep, b'')
             return data.rstrip(b"\x00").decode("ascii", errors="ignore")
         elif self.data_type == UNICODE_STRING:
             # Is this correct?
@@ -312,8 +325,16 @@ class Variable(object):
                 value, = self.STRUCT_TYPES[self.data_type].unpack(data)
                 return value
             except struct.error:
-                raise ObjectDictionaryError(
-                    "Mismatch between expected and actual data size")
+                 # Try to evaluate data as U32 (this is a hack for some non-standard behavior seen on some devices)
+                try:
+                    data = data.ljust(4, b'\x00')
+                    if len(data) > 4:
+                        data = data[:4]
+                    value, = self.STRUCT_TYPES[UNSIGNED32].unpack(data)
+                    return value
+                except struct.error:
+                    raise ObjectDictionaryError(
+                        "Mismatch between expected and actual data size")
         else:
             # Just return the data as is
             return data

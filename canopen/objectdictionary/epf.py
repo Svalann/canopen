@@ -51,7 +51,19 @@ def import_epf(epf):
         parameters = group_tree.findall("Parameter")
         index = int(parameters[0].get("Index"), 0)
 
-        if len(parameters) == 1:
+        if len(parameters) >= 1 and parameters[0].get("ObjectType") == "ARRAY":
+            # Special non standard VMC30 arrays in groups
+            for par_tree in parameters:
+                index = int(par_tree.get("Index"), 0)
+                if par_tree.get("ObjectType") == "ARRAY":
+                    arr = objectdictionary.Array(name, index)
+                    var = build_variable(par_tree)
+                    arr.add_member(var)
+                    description = group_tree.find("Description")
+                    if description is not None:
+                        arr.description = description.text
+                    od.add_object(arr)
+        elif len(parameters) == 1:
             # Simple variable
             var = build_variable(parameters[0])
             # Use top level index name instead
@@ -83,7 +95,10 @@ def import_epf(epf):
 
 def build_variable(par_tree):
     index = int(par_tree.get("Index"), 0)
-    subindex = int(par_tree.get("SubIndex"))
+    try:
+        subindex = int(par_tree.get("SubIndex"))
+    except TypeError:
+        subindex = 0
     name = par_tree.get("SymbolName")
     data_type = par_tree.get("DataType")
 
@@ -91,7 +106,7 @@ def build_variable(par_tree):
     factor = par_tree.get("Factor", "1")
     par.factor = int(factor) if factor.isdigit() else float(factor)
     unit = par_tree.get("Unit")
-    if unit and unit != "-":
+    if unit:
         par.unit = unit
     description = par_tree.find("Description")
     if description is not None:
