@@ -3,6 +3,7 @@ try:
 except ImportError:
     import xml.etree.ElementTree as etree
 import logging
+import re
 from canopen import objectdictionary
 
 logger = logging.getLogger(__name__)
@@ -104,6 +105,18 @@ def build_variable(par_tree):
 
     par = objectdictionary.Variable(name, index, subindex)
     factor = par_tree.get("Factor", "1")
+    
+    # malformed factor, letters in factor.
+    if re.search('[a-zA-Z]', factor):
+        # Finds all ints and floats in factor and saves in list
+        number = re.findall(r"[-+]?\d*\.\d+|\d+", factor)
+        # simply assumes that if several numbers is found the string is really wrong and sets it to default ("1"), 
+        # otherwise assumes it is something like "2.1v/bit" and sets factor to "2.1"
+        if len(number) <= 1:
+            factor = number[0]
+        else:
+            factor = "1"
+            
     par.factor = int(factor) if factor.isdigit() else float(factor)
     unit = par_tree.get("Unit")
     if unit:
