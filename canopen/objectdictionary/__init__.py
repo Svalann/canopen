@@ -277,6 +277,9 @@ class Variable(object):
         #: Dictionary of bitfield definitions
         self.bit_definitions = {}
 
+        self.bit_description = {}
+        self.bit_value_definition = {}
+
     def __eq__(self, other):
         return (self.index == other.index and
                 self.subindex == other.subindex)
@@ -310,6 +313,45 @@ class Variable(object):
         :param list bits: List of bits as integers
         """
         self.bit_definitions[name] = bits
+
+    def add_bit_description(self, bits, descr):
+        """Associate bit name with a string description.
+
+        :param list bits: List of bits as integers
+        :param str desc: Description of bit
+        """
+        bits_as_string = self.integer_list_to_string(bits)
+
+        self.bit_description[bits_as_string] = descr
+
+    def add_bit_value_definition(self, bits, value, descr):
+        """Associate bits with it different value descriptions
+
+        :param list bits: List of bits as integers
+        :param int value: Value to describe
+        :param str desc: Description of bit
+        """
+
+        bits_as_string = self.integer_list_to_string(bits)
+        
+        if bits_as_string in self.bit_value_definition:
+            bit_value_description = self.bit_value_definition[bits_as_string]
+        else:
+            bit_value_description = {}
+           
+        # Dictionary associate value with value definition   
+        bit_value_description[value] = descr
+
+        self.bit_value_definition[bits_as_string] = bit_value_description
+
+
+    def integer_list_to_string(self, list_of_ints):
+        ''' Converts a list of ints to  a string'''
+        list_as_string = ""        
+        for integer in list_of_ints:
+            list_as_string += str(integer) + ","
+        list_as_string = list_as_string[:-1]  
+        return list_as_string
 
     def decode_raw(self, data):
         if self.data_type == VISIBLE_STRING:
